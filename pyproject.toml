@@ -1,0 +1,55 @@
+[project]
+name = "[package_name]"
+version = "0.0.1"
+description = "[description]"
+requires-python = ">=3.12"
+authors = []
+keywords = []
+dependencies = []
+
+
+
+[tool.pytest.ini_options]
+# Test discovery
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+pythonpath = ["src"]
+
+# Execution options
+addopts = [
+]
+
+# Async test configuration
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+# Test markers
+markers = [
+    "unit: marks tests as unit tests (fast tests using mocks)",
+    "integration: marks tests as integration tests (real API calls)",
+]
+
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint]
+select = [
+    "F",  # default Ruff rules
+]
+ignore = [
+    "F401", # Unused import
+]
+
+extend-select = [
+    "PLR2004", # magic value used in comparison
+    "D101",    # missing docstring in public class
+    "D102",    # missing docstring in public method
+    "D103",    # missing docstring in public function
+]
