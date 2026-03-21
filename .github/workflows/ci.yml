@@ -23,15 +23,15 @@ jobs:
 
       - name: Verify Service Health Status
         run: |
-          STATUSES=$(docker compose ps --format json | jq -r '.[].Health')
-          for status in $STATUSES; do
-            if [ "$status" != "healthy" ]; then
-              echo "Error: Service status is $status (expected: healthy)"
-              docker compose ps
-              exit 1
-            fi
-          done
-          echo "All services verified healthy."
+          NON_HEALTHY=$(docker compose ps --format json | jq -s -r '.[] | select(.State != "running" or (.Health != "" and .Health != "healthy")) | "\(.Service) - State: \(.State), Health: \(.Health)"')
+          
+          if [ ! -z "$NON_HEALTHY" ]; then
+            echo "Error: The following services are not fully healthy or running:"
+            echo "$NON_HEALTHY"
+            docker compose ps
+            exit 1
+          fi
+          echo "All services verified healthy and running."
 
       - name: Check Service Logs on Failure
         if: failure()
