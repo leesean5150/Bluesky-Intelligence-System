@@ -8,8 +8,16 @@ keywords = []
 dependencies = [
     "aiohttp>=3.13.3",
     "atproto>=0.0.65",
+    "backoff>=2.2.1",
+    "beautifulsoup4>=4.13.3",
+    "cachetools>=5.5.2",
     "ipykernel>=7.2.0",
+    "numpy>=2.2.3",
+    "openai>=1.64.0",
     "psycopg[binary]>=3.2.4",
+    "psycopg-pool>=3.2.4",
+    "python-dotenv>=1.0.1",
+    "tzdata>=2025.1",
 ]
 
 

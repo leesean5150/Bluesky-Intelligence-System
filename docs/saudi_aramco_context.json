@@ -1,0 +1,27 @@
+[
+  {
+    "id": "chunk_1",
+    "topic": "Overview and Global Importance",
+    "text": "Saudi Aramco is the state-owned petroleum and natural gas company of Saudi Arabia. It is one of the largest companies in the world by revenue and manages the world's second-largest proven crude oil reserves. It produces roughly 10% of the world's oil, making its operations critical to global energy supply, inflation rates, and market stability."
+  },
+  {
+    "id": "chunk_2",
+    "topic": "Abqaiq and Khurais Facilities",
+    "text": "The Abqaiq facility is the world's largest crude oil processing and stabilization plant, essential for preparing oil for export. Khurais is a massive adjacent oil field. These facilities are the heart of Saudi Arabia's oil infrastructure. A major disruption here, such as the 2019 drone attacks, directly causes immediate global oil price spikes."
+  },
+  {
+    "id": "chunk_3",
+    "topic": "Export Hubs - Ras Tanura and Yanbu",
+    "text": "Ras Tanura, located on the Persian Gulf, is a major port and oil refinery handling a vast majority of Saudi Arabia's petroleum exports. Yanbu, located on the Red Sea coast (which includes the SAMREF refinery), serves as a strategic alternative export hub. Blockades, mining, or attacks on these ports severely throttle the global supply chain."
+  },
+  {
+    "id": "chunk_4",
+    "topic": "Geopolitical Vulnerabilities",
+    "text": "Saudi Aramco's infrastructure is highly vulnerable to geopolitical tensions in the Middle East. It has historically been targeted by regional actors, including drone and missile strikes by Houthi rebels in Yemen and other Iran-aligned proxy groups. These attacks are typically used as asymmetric warfare to exert economic pressure."
+  },
+  {
+    "id": "chunk_5",
+    "topic": "Supply Chain Cascading Effects",
+    "text": "Any significant damage, cyberattack, or production halt at Saudi Aramco facilities has an immediate cascading effect on global supply chains. It leads to increased fuel costs for global shipping and aviation, induces inflationary pressures on manufacturing sectors worldwide, and forces strategic shifts in national energy reserves."
+  }
+]

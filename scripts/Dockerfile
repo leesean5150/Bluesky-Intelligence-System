@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y procps && rm -rf /var/lib/apt/lists/*
 # Keeps Python from buffering stdout/stderr and from writing .pyc files
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV UV_LINK_MODE=copy
 
 WORKDIR /app
 

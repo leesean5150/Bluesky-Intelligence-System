@@ -19,6 +19,8 @@ jobs:
       - name: Start Docker Services
         run: |
           cp .env.example .env
+          echo "OPENAI_API_KEY=sk-dummy-key-for-ci" >> .env
+          echo "CI=true" >> .env
           docker compose up -d --build --wait
 
       - name: Verify Service Health Status
