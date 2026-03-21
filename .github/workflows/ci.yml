@@ -1,0 +1,42 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  test-infrastructure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start Docker Services
+        run: |
+          cp .env.example .env
+          docker compose up -d --build --wait
+
+      - name: Verify Service Health Status
+        run: |
+          STATUSES=$(docker compose ps --format json | jq -r '.[].Health')
+          for status in $STATUSES; do
+            if [ "$status" != "healthy" ]; then
+              echo "Error: Service status is $status (expected: healthy)"
+              docker compose ps
+              exit 1
+            fi
+          done
+          echo "All services verified healthy."
+
+      - name: Check Service Logs on Failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down Docker Services
+        if: always()
+        run: docker compose down -v
