@@ -89,7 +89,7 @@ async def initialize_database(pool: AsyncConnectionPool):
                         actionable_insights TEXT,
                         impact_score INTEGER,
                         full_llm_input TEXT,
-                        llm_response TEXT,
+                        reasoning TEXT,
                         retrieved_context TEXT,
                         ingested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                     );
@@ -229,6 +229,7 @@ Provide JSON with: impact_score (0-100), actionable_insights, reasoning.
         return {
             "insights": result.get("actionable_insights", ""),
             "score": result.get("impact_score", 0),
+            "reasoning": result.get("reasoning", ""),
             "full_input": prompt,
             "raw_response": raw_content
         }
@@ -328,16 +329,16 @@ async def worker(queue: asyncio.Queue, session: aiohttp.ClientSession, pool: Asy
                 async with conn.cursor() as cur:
                     await cur.execute("""
                         INSERT INTO intelligence_events (
-                            id, post_uri, post_text, uri, external_title, external_description, 
-                            post_created_at, actionable_insights, impact_score, 
-                            full_llm_input, llm_response, retrieved_context
+                            id, post_uri, post_text, uri, external_title, external_description,
+                            post_created_at, actionable_insights, impact_score,
+                            full_llm_input, reasoning, retrieved_context
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (id) DO NOTHING
-                    """, (
+                        """, (
                         event_id, post_uri, text, url, external.get('title'), external.get('description'),
-                        record.get('createdAt'), analysis['insights'], analysis['score'],
-                        analysis['full_input'], analysis['raw_response'], context
-                    ))
+                        record.get('createdAt'), json.dumps(analysis['insights']) if isinstance(analysis['insights'], list) else analysis['insights'], analysis['score'],
+                        analysis['full_input'], analysis['reasoning'], context
+                        ))
                     await conn.commit()
             logger.info(f"SUCCESS: Saved unique event {event_id} (Score: {analysis['score']})")
 

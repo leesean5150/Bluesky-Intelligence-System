@@ -11,6 +11,7 @@ interface IntelligenceEvent {
   post_created_at: string | null;
   actionable_insights: string | null;
   impact_score: number | null;
+  reasoning: string | null;
   retrieved_context: string | null;
   ingested_at: string;
 }
@@ -322,6 +323,7 @@ export default function EventsTable() {
                               value={event.external_description}
                             />
                             <InsightsRow value={event.actionable_insights} />
+                            <DetailRow label="Reasoning" value={event.reasoning} />
                             <DetailRow
                               label="Retrieved Context"
                               value={
