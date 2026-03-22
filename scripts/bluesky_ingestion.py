@@ -485,7 +485,7 @@ async def main():
         async with AsyncConnectionPool(conninfo=conn_str, min_size=2, max_size=MAX_WORKERS+1) as pool:
             await initialize_database(pool)
             
-            if os.getenv("CI") == "true":
+            if os.getenv("CI", "true") == "true":
                 logger.info("CI environment detected. Skipping OpenAI context vectorization.")
             else:
                 await load_and_vectorize_context()
