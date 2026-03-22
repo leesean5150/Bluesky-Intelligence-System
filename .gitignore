@@ -1,2 +1,4 @@
 .env
 GEMINI.md
+src/node_modules
+src/.next

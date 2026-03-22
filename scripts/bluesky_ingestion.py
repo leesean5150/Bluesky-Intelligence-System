@@ -28,11 +28,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Constants
 ARAMCO_KEYWORDS = ["aramco", "samref", "yanbu", "ras tanura", "oil facility"]
 REGEX_PATTERN = re.compile(rf"\b({'|'.join(re.escape(w) for w in ARAMCO_KEYWORDS)})\b", re.IGNORECASE)
 TRUSTED_DIDS = {"did:plc:vovinwhtulbsx4mwfw26r5ni", "did:plc:jz3umb574v5ixivurtelqstt", "did:plc:tshrll7hb5scyeg4m6nitxtr"}
-MIN_ACCOUNT_AGE_DAYS = 0
+MIN_ACCOUNT_AGE_DAYS = 30
 IMPACT_SCORE_THRESHOLD = 50
 MAX_WORKERS = 5
 MAX_QUEUE_SIZE = 50
@@ -63,10 +62,6 @@ def clean_json_response(raw_text: str) -> str:
     clean = re.sub(r"```\s*", "", clean)
     return clean.strip()
 
-def get_now() -> datetime:
-    """Returns current time in the configured application timezone."""
-    return datetime.now(APP_TZ)
-
 # --- DATABASE SETUP ---
 
 def get_db_conn_str() -> str:
@@ -94,7 +89,7 @@ async def initialize_database(pool: AsyncConnectionPool):
                         actionable_insights TEXT,
                         impact_score INTEGER,
                         full_llm_input TEXT,
-                        llm_response TEXT,
+                        reasoning TEXT,
                         retrieved_context TEXT,
                         ingested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                     );
@@ -207,8 +202,7 @@ async def analyze_post(post_data: Dict[str, Any], scraped_content: str, context:
     if not openai_client:
         return None
 
-    prompt = f"""
-SYSTEM: You are a geopolitical intelligence analyst for a global energy firm.
+    prompt = f"""SYSTEM: You are a geopolitical intelligence analyst for a global energy firm.
 Your task is to analyze a Bluesky post and provide actionable insights regarding the Iran conflict and its impact on Saudi Aramco's supply chain. Your answer should only be influenced by the bluesky post rather than the context of the documents. The documents are only there to provide context if it helps to better understand the bluesky post.
 TIMEZONE: {DEFAULT_TZ_STR}
 
@@ -219,12 +213,12 @@ WEBSITE CONTENT:
 {scraped_content}
 -------------------------------------------
 BLUESKY POST:
-Text: {post_data['text']}
+Text: {post_data['text'], 'N/A'}
 Title: {post_data.get('title', 'N/A')}
 Description: {post_data.get('description', 'N/A')}
 -------------------------------------------
 Provide JSON with: impact_score (0-100), actionable_insights, reasoning.
-    """
+"""
 
     try:
         response = await call_llm(prompt)
@@ -233,8 +227,9 @@ Provide JSON with: impact_score (0-100), actionable_insights, reasoning.
         result = json.loads(clean_content)
         
         return {
-            "insights": result.get("actionable_insights"),
-            "score": result.get("impact_score"),
+            "insights": result.get("actionable_insights", ""),
+            "score": result.get("impact_score", 0),
+            "reasoning": result.get("reasoning", ""),
             "full_input": prompt,
             "raw_response": raw_content
         }
@@ -334,16 +329,16 @@ async def worker(queue: asyncio.Queue, session: aiohttp.ClientSession, pool: Asy
                 async with conn.cursor() as cur:
                     await cur.execute("""
                         INSERT INTO intelligence_events (
-                            id, post_uri, post_text, uri, external_title, external_description, 
-                            post_created_at, actionable_insights, impact_score, 
-                            full_llm_input, llm_response, retrieved_context
+                            id, post_uri, post_text, uri, external_title, external_description,
+                            post_created_at, actionable_insights, impact_score,
+                            full_llm_input, reasoning, retrieved_context
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (id) DO NOTHING
-                    """, (
+                        """, (
                         event_id, post_uri, text, url, external.get('title'), external.get('description'),
-                        record.get('createdAt'), analysis['insights'], analysis['score'],
-                        analysis['full_input'], analysis['raw_response'], context
-                    ))
+                        record.get('createdAt'), json.dumps(analysis['insights']) if isinstance(analysis['insights'], list) else analysis['insights'], analysis['score'],
+                        analysis['full_input'], analysis['reasoning'], context
+                        ))
                     await conn.commit()
             logger.info(f"SUCCESS: Saved unique event {event_id} (Score: {analysis['score']})")
 
