@@ -4,7 +4,7 @@ import logging
 import json
 import re
 import hashlib
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -31,7 +31,17 @@ logger = logging.getLogger(__name__)
 ARAMCO_KEYWORDS = ["aramco", "samref", "yanbu", "ras tanura", "oil facility"]
 REGEX_PATTERN = re.compile(rf"\b({'|'.join(re.escape(w) for w in ARAMCO_KEYWORDS)})\b", re.IGNORECASE)
 TRUSTED_DIDS = {"did:plc:vovinwhtulbsx4mwfw26r5ni", "did:plc:jz3umb574v5ixivurtelqstt", "did:plc:tshrll7hb5scyeg4m6nitxtr"}
-MIN_ACCOUNT_AGE_DAYS = 30
+REJECT_LABELS = {"spam", "impersonation"}
+TRUSTED_DOMAINS = {
+    "nytimes.com", "washingtonpost.com", "reuters.com", "apnews.com",
+    "bbc.co.uk", "aljazeera.com", "aramco.com", "bloomberg.com",
+    "ft.com", "economist.com",
+}
+DEFAULT_DOMAINS = {"bsky.social"}
+FILTER_SCORE_THRESHOLD = float(os.getenv("FILTER_SCORE_THRESHOLD", "0.5"))
+WEIGHT_DOMAIN = 0.30
+WEIGHT_ACCOUNT_AGE = 0.30
+WEIGHT_FOLLOWER_RATIO = 0.40
 IMPACT_SCORE_THRESHOLD = 50
 MAX_WORKERS = 5
 MAX_QUEUE_SIZE = 50
@@ -202,22 +212,27 @@ async def analyze_post(post_data: Dict[str, Any], scraped_content: str, context:
     if not openai_client:
         return None
 
-    prompt = f"""SYSTEM: You are a geopolitical intelligence analyst for a global energy firm.
-Your task is to analyze a Bluesky post and provide actionable insights regarding the Iran conflict and its impact on Saudi Aramco's supply chain. Your answer should only be influenced by the bluesky post rather than the context of the documents. The documents are only there to provide context if it helps to better understand the bluesky post.
+    prompt = f"""You are a geopolitical intelligence analyst for a global energy firm.
+Your task is to analyze a breaking social media post and assess its potential impact on Saudi Aramco's supply chain.
+
+INSTRUCTIONS:
+1. The BLUESKY POST is the *only* source of new information or breaking events.
+2. The BACKGROUND CONTEXT provides static historical/geographical data. Use it ONLY to explain the significance of the Bluesky post.
+3. NEVER attribute information from the Background Context to the Bluesky post. Maintain a strict separation between what the post claims and what the context implies.
 TIMEZONE: {DEFAULT_TZ_STR}
 
-CONTEXT DOCUMENTS:
+BACKGROUND CONTEXT (Static data - Do not treat as breaking news):
 {context}
--------------------------------------------
+=========================================
 WEBSITE CONTENT:
 {scraped_content}
--------------------------------------------
-BLUESKY POST:
-Text: {post_data['text'], 'N/A'}
+=========================================
+BLUESKY POST (The breaking event to analyze):
+Text: {post_data.get('text', 'N/A')}
 Title: {post_data.get('title', 'N/A')}
 Description: {post_data.get('description', 'N/A')}
--------------------------------------------
-Provide JSON with: impact_score (0-100), actionable_insights, reasoning.
+=========================================
+Provide JSON with: impact_score (0-100), actionable_insights (in an array format), reasoning.
 """
 
     try:
@@ -256,30 +271,117 @@ async def get_cached_profile(session: aiohttp.ClientSession, did: str) -> Option
         logger.warning(f"Profile fetch error for {did}: {e}")
     return None
 
-async def passes_secondary_filters(author_did: str, session: aiohttp.ClientSession) -> bool:
-    profile = await get_cached_profile(session, author_did)
-    if not profile:
+def has_reject_labels(labels: list) -> bool:
+    """Check if profile has any hard-reject moderation labels."""
+    if not labels:
         return False
-        
-    created_at_str = profile.get("createdAt")
-    if not created_at_str:
-        return False
-        
+    for label in labels:
+        val = label.get("val", "") if isinstance(label, dict) else getattr(label, "val", "")
+        if val in REJECT_LABELS:
+            return True
+    return False
+
+
+def score_domain(handle: str) -> float:
+    """Score based on handle domain. Custom verified domains score highest."""
+    if not handle:
+        return 0.0
+
+    for trusted in TRUSTED_DOMAINS:
+        if handle == trusted or handle.endswith(f".{trusted}"):
+            return 1.0
+
+    for default in DEFAULT_DOMAINS:
+        if handle == default or handle.endswith(f".{default}"):
+            return 0.4
+
+    if "." in handle:
+        return 0.7
+
+    return 0.0
+
+
+def score_account_age(created_at_str: str) -> float:
+    """Score based on account age. Older accounts score higher with diminishing returns."""
     try:
         created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
     except (ValueError, TypeError):
+        return 0.0
+
+    age_days = (datetime.now(timezone.utc) - created_at).days
+
+    if age_days < 7:
+        return 0.0
+    if age_days < 30:
+        return 0.2
+    if age_days < 90:
+        return 0.5
+    if age_days < 365:
+        return 0.7
+    return 1.0
+
+
+def score_follower_ratio(followers: int, following: int) -> float:
+    """Score based on follower:following ratio. Spam accounts follow many, have few followers."""
+    if following == 0:
+        return 0.8 if followers > 0 else 0.0
+
+    ratio = followers / following
+
+    if ratio >= 1.0:
+        return 1.0
+    if ratio >= 0.3:
+        return 0.7
+    if ratio >= 0.1:
+        return 0.4
+    if ratio >= 0.01:
+        return 0.15
+    return 0.0
+
+
+async def passes_secondary_filters(author_did: str, session: aiohttp.ClientSession) -> bool:
+    """Tiered filter: hard accept (trusted DIDs) -> hard reject (labels) -> soft scoring."""
+    # Tier 0: Hard Accept
+    if author_did in TRUSTED_DIDS:
+        logger.debug(f"Filter Accept (trusted DID): {author_did}")
+        return True
+
+    # Profile fetch
+    profile = await get_cached_profile(session, author_did)
+    if not profile:
         return False
 
-    age = datetime.now(timezone.utc) - created_at
-    
-    if author_did in TRUSTED_DIDS:
-        return True
-        
-    if age < timedelta(days=MIN_ACCOUNT_AGE_DAYS):
-        logger.info(f"Filter Reject: Account {author_did} age {age.days} days < {MIN_ACCOUNT_AGE_DAYS}")
+    # Tier 1: Hard Reject (moderation labels)
+    labels = profile.get("labels", [])
+    if has_reject_labels(labels):
+        logger.info(f"Filter Reject (moderation label): {author_did}")
         return False
-    
-    return True
+
+    # Tier 2: Composite Scoring
+    handle = profile.get("handle", "")
+    created_at_str = profile.get("createdAt", "")
+    followers = profile.get("followersCount", 0)
+    following = profile.get("followsCount", 0)
+
+    d_score = score_domain(handle)
+    a_score = score_account_age(created_at_str)
+    r_score = score_follower_ratio(followers, following)
+
+    composite = WEIGHT_DOMAIN * d_score + WEIGHT_ACCOUNT_AGE * a_score + WEIGHT_FOLLOWER_RATIO * r_score
+    passed = composite >= FILTER_SCORE_THRESHOLD
+
+    if not passed:
+        logger.info(
+            f"Filter Reject (score {composite:.2f} < {FILTER_SCORE_THRESHOLD}): "
+            f"{author_did} [domain={d_score:.1f}, age={a_score:.1f}, ratio={r_score:.1f}]"
+        )
+    else:
+        logger.debug(
+            f"Filter Accept (score {composite:.2f}): "
+            f"{author_did} [domain={d_score:.1f}, age={a_score:.1f}, ratio={r_score:.1f}]"
+        )
+
+    return passed
 
 # --- WORKER PATTERN ---
 
