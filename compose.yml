@@ -29,6 +29,7 @@ services:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CI: ${CI}
       TIMEZONE: ${TIMEZONE:-Asia/Singapore}
     depends_on:
       db:

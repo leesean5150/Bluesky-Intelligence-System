@@ -14,12 +14,9 @@ import backoff
 from bs4 import BeautifulSoup
 from zoneinfo import ZoneInfo
 from cachetools import TTLCache
-from dotenv import load_dotenv
 from openai import AsyncOpenAI, RateLimitError, APITimeoutError
 from atproto import AsyncFirehoseSubscribeReposClient, parse_subscribe_repos_message, models, CAR
 from psycopg_pool import AsyncConnectionPool
-
-load_dotenv()
 
 # --- CONFIGURATION ---
 logging.basicConfig(
@@ -97,6 +94,7 @@ async def initialize_database(pool: AsyncConnectionPool):
                         external_description TEXT,
                         post_created_at TIMESTAMP WITH TIME ZONE,
                         actionable_insights TEXT,
+                        stakeholders TEXT,
                         impact_score INTEGER,
                         full_llm_input TEXT,
                         reasoning TEXT,
@@ -217,8 +215,10 @@ Your task is to analyze a breaking social media post and assess its potential im
 
 INSTRUCTIONS:
 1. The BLUESKY POST is the *only* source of new information or breaking events.
-2. The BACKGROUND CONTEXT provides static historical/geographical data. Use it ONLY to explain the significance of the Bluesky post.
-3. NEVER attribute information from the Background Context to the Bluesky post. Maintain a strict separation between what the post claims and what the context implies.
+2. From the post, provide actionable insights regarding the ongoing Iran conflict
+3. From the post, identify and extract all key geopolitical stakeholders, influencers, state actors, or organizations driving the events in the Bluesky post.
+4. The BACKGROUND CONTEXT provides static historical/geographical data. Use it ONLY to explain the significance of the Bluesky post.
+5. NEVER attribute information from the Background Context to the Bluesky post. Maintain a strict separation between what the post claims and what the context implies.
 TIMEZONE: {DEFAULT_TZ_STR}
 
 BACKGROUND CONTEXT (Static data - Do not treat as breaking news):
@@ -232,7 +232,7 @@ Text: {post_data.get('text', 'N/A')}
 Title: {post_data.get('title', 'N/A')}
 Description: {post_data.get('description', 'N/A')}
 =========================================
-Provide JSON with: impact_score (0-100), actionable_insights (in an array format), reasoning.
+Provide JSON with 4 keys: impact_score (0-100), actionable_insights (in an array format), stakeholders (in an array format), reasoning.
 """
 
     try:
@@ -242,8 +242,9 @@ Provide JSON with: impact_score (0-100), actionable_insights (in an array format
         result = json.loads(clean_content)
         
         return {
-            "insights": result.get("actionable_insights", ""),
+            "insights": result.get("actionable_insights", "[]"),
             "score": result.get("impact_score", 0),
+            "stakeholders": result.get("stakeholders", "[]"),
             "reasoning": result.get("reasoning", ""),
             "full_input": prompt,
             "raw_response": raw_content
@@ -432,13 +433,13 @@ async def worker(queue: asyncio.Queue, session: aiohttp.ClientSession, pool: Asy
                     await cur.execute("""
                         INSERT INTO intelligence_events (
                             id, post_uri, post_text, uri, external_title, external_description,
-                            post_created_at, actionable_insights, impact_score,
+                            post_created_at, actionable_insights, stakeholders, impact_score,
                             full_llm_input, reasoning, retrieved_context
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (id) DO NOTHING
                         """, (
                         event_id, post_uri, text, url, external.get('title'), external.get('description'),
-                        record.get('createdAt'), json.dumps(analysis['insights']) if isinstance(analysis['insights'], list) else analysis['insights'], analysis['score'],
+                        record.get('createdAt'), json.dumps(analysis['insights']) if isinstance(analysis['insights'], list) else analysis['insights'], json.dumps(analysis['stakeholders']) if isinstance(analysis['stakeholders'], list) else analysis['stakeholders'], analysis['score'],
                         analysis['full_input'], analysis['reasoning'], context
                         ))
                     await conn.commit()
@@ -484,6 +485,8 @@ async def main():
     try:
         async with AsyncConnectionPool(conninfo=conn_str, min_size=2, max_size=MAX_WORKERS+1) as pool:
             await initialize_database(pool)
+
+            print(os.getenv("CI"))
             
             if os.getenv("CI", "true") == "true":
                 logger.info("CI environment detected. Skipping OpenAI context vectorization.")

@@ -10,6 +10,7 @@ interface IntelligenceEvent {
   external_description: string | null;
   post_created_at: string | null;
   actionable_insights: string | null;
+  stakeholders: string | null;
   impact_score: number | null;
   reasoning: string | null;
   retrieved_context: string | null;
@@ -114,13 +115,13 @@ function parseInsights(raw: string): string[] {
   return byLine.length > 1 ? byLine : [raw.trim()];
 }
 
-function InsightsRow({ value }: { value: string | null | undefined }) {
+function ArrayRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   const items = parseInsights(value);
   return (
     <div>
       <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">
-        Actionable Insights
+        {label}
       </div>
       {items.length === 1 ? (
         <p className="text-sm text-gray-700 leading-relaxed">{items[0]}</p>
@@ -322,7 +323,8 @@ export default function EventsTable() {
                               label="External Description"
                               value={event.external_description}
                             />
-                            <InsightsRow value={event.actionable_insights} />
+                            <ArrayRow label="Actionable Insights" value={event.actionable_insights} />
+                            <ArrayRow label="Stakeholders" value={event.stakeholders} />
                             <DetailRow label="Reasoning" value={event.reasoning} />
                             <DetailRow
                               label="Retrieved Context"
