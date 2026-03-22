@@ -14,6 +14,7 @@ WORKDIR /app
 # Install all deps (including dev) into the project's .venv.
 # Source is mounted as a volume — only pyproject.toml is needed here at build time.
 COPY pyproject.toml uv.lock* ./
+COPY docs/ ./docs/
 RUN uv sync --frozen
 
 # Source code is volume-mounted at runtime — no COPY needed.
