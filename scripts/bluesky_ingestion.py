@@ -405,7 +405,7 @@ async def worker(queue: asyncio.Queue, session: aiohttp.ClientSession, pool: Asy
             dedupe_source = url if url else text
             event_id = hashlib.sha256(dedupe_source.encode('utf-8')).hexdigest()
             
-            # 0. PERSISTENT DEDUPLICATION (Saves API Costs)
+            # PERSISTENT DEDUPLICATION
             async with pool.connection() as conn:
                 async with conn.cursor() as cur:
                     await cur.execute("SELECT 1 FROM intelligence_events WHERE id = %s", (event_id,))
