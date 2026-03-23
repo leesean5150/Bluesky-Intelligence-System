@@ -94,3 +94,12 @@ At startup, `docs/saudi_aramco_context.json` is vectorised with `text-embedding-
 ### 1. Configurable filtering without per-user scraper instances
 
 Making the filter tunable (threshold, weights, keyword list) while keeping a single ingestion process is a design tension. The current solution externalises key parameters as environment variables, which works for a single operator. For a multi-tenant deployment where different analysts want different sensitivity levels, each configuration would technically need its own worker pool, as a shared worker cannot apply different filters per user concurrently. A practical workaround would be RBAC with configuration bound to roles, with a dispatcher layer that routes posts to per-role queues, but this would significantly increase infrastructure complexity and is deferred beyond MVP.
+
+
+## Mocks/LLM Assistance
+
+The development process for this application made used of claude code and gemini cli, both of which have markdown files that have been pushed to the repository. The models were leveraged as design partners and code accelerators under a strict, human-in-the-loop review process:
+1. Planning of the architecture started with clear constraints and expectations to the LLMs, as well as continued iterations. There were scenarios where the LLM made poor judgements of the architecture based on the user requirements, like defaulting to a microservice approach or using polling instead of streaming of the webdata, but also improved the code, like suggesting to use pool connection for the workers, and using domains or classification labels to filter bluesky posts.
+2. Libraries and methods that were available were sourced from the LLMs, and documentation was double checked when exceptions were raised.
+3. Frontend boilerplate and React components were generated using Claude Code, but had strict contraints like keeping the UI minimal, having a dropdown for extended content, as well as pagination to keep the page looking clean.
+4. Last point to note would be that no code was auto accepted from prompting, and every line of code that was generated was manually checked to prevent hallucinations and poor code quality.
