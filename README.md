@@ -2,9 +2,7 @@ This system ingests live Bluesky data, filters out noise, identifies key geopoli
 
 ## Sample Demo
 
-<video src="./assets/demo.mp4" width="100%" controls>
-  Your browser does not support the video tag.
-</video>
+![Video Title](./assets/demo.mp4)
 
 note: during the demo, a live event was streamed at the same time as the target post, showing the asynchronous ability of the data ingestion pipeline.
 
