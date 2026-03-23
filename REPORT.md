@@ -28,23 +28,24 @@ Next.js was chosen over a separate API layer because its file-system routing col
 
 ### Six-stage filter pipeline
 
-Each stage is a gate; a post that fails any stage is dropped before the next, more expensive stage runs:
+Each stage is a gate; a post that fails any stage is dropped (except for trusted DID checks) before the next, more expensive stage runs:
 
 | Stage | Mechanism |
 |---|---|
 | 1. Keyword regex | `ARAMCO_KEYWORDS` compiled regex on post text |
 | 2. SHA-256 deduplication | Hash of URL or post text, checked against DB |
 | 3. Trusted DID bypass | Hard-accept set of known verified accounts |
-| 4. Ozone label rejection | Hard-reject `spam`/`impersonation` labels from AT Protocol profile |
+| 4. Label rejection | Hard-reject `spam`/`impersonation` labels from AT Protocol profile |
 | 5. Composite trust score | Weighted score: domain trust (0.30) + account age (0.30) + follower ratio (0.40) ≥ threshold |
 | 6. LLM impact scoring | `gpt-5.4-nano-2026-03-17` with RAG context, only if score ≥ 50 stored |
 
-The composite score threshold (`FILTER_SCORE_THRESHOLD`, default 0.5) is an environment variable, allowing operators to tighten or loosen quality gates without touching code. Profiles are cached for 1 hour (TTL cache, 10k entries) to avoid redundant AT Protocol API calls for prolific posters
+The composite score threshold (`FILTER_SCORE_THRESHOLD`, default 0.5) is an environment variable, allowing operators to tighten or loosen quality gates without touching code. Profiles are cached for 1 hour (TTL cache, 10k entries) to avoid redundant AT Protocol API calls for profile details.
 
 Moreover, the pipeline is designed to expect and gracefully handle API failures and messy data:
 1. Exponential Backoff: Calls to the LLM API are wrapped with retry logic (using python's inbuilt backoff decorator) with exponential backoff. This ensures transient rate limits or OpenAI server errors do not crash the pipeline or permanently drop high-value posts.
-2. Graceful Degradation: Broad exception catching is implemented around the parsing and LLM scoring modules. If a specific post causes a parsing error or schema validation failure, the error is logged gracefully, and the worker moves on to the next item in the queue rather than halting the process.
-3. Error prevention: Finally, OpenAI API concurrency is capped at 3 via a semaphore to stay within rate limits and budget.
+2. CLeaning and Sanitzation: Parsing logic between LLM calls and webscrape requests to ensure clean sanitized data that allow for information to be readily extracted.
+3. Graceful Degradation: Broad exception catching is implemented around the parsing and LLM scoring modules. If a specific post causes a parsing error or schema validation failure, the error is logged gracefully, and the worker moves on to the next item in the queue rather than halting the process.
+4. Error prevention: Finally, OpenAI API concurrency is capped at 3 via a semaphore to stay within rate limits and budget.
 
 ### RAG grounding
 
@@ -59,7 +60,7 @@ At startup, `docs/saudi_aramco_context.json` is vectorised with `text-embedding-
 | Proactive, continuous intelligence | Persistent WebSocket firehose; `restart: unless-stopped` on the ingestion service |
 | Real-time dashboard | PostgreSQL `NOTIFY` trigger → SSE stream → live React table update without polling |
 | Trusted, reputable sources only | Tiered filter: hard-reject spam labels, domain trust scoring, follower ratio |
-| Actionable, targeted insights | LLM prompt instructs analyst role with Aramco-specific framing; output is scored array of action items |
+| Actionable, targeted insights | LLM prompt instructs analyst role with Aramco-specific framing; output is scored and has a list of action items and stakeholders |
 | Transparency | Direct URL references to the original Bluesky post, allowing analysts to verify claims and mitigate the risk of LLM hallucinations.  |
 | Audit trail for LLM output | Full LLM input, retrieved RAG chunks, and raw reasoning stored per event in DB |
 | Budget discipline | Pre-LLM filter eliminates redundant streamed data; nano-class model used; OpenAI concurrency capped |
@@ -72,15 +73,15 @@ At startup, `docs/saudi_aramco_context.json` is vectorised with `text-embedding-
 
 2. **Worker auto-sizing**: The current fixed `MAX_WORKERS=5` is a conservative default. Production sizing requires profiling the p95 latency per post through the pipeline (scrape + embedding + LLM) and choosing a worker count that keeps queue depth near zero under peak load without exhausting OpenAI rate limits.
 
-3. **Kubernetes for production orchestration**: Replace Docker Compose with Kubernetes: a `StatefulSet` for Postgres with a persistent volume claim, a `Deployment` for the frontend with horizontal pod autoscaling, and a single-replica `Deployment` for the ingestion pod with a `restartPolicy: Always` equivalent.
+3. **Kubernetes for production orchestration**: Replace Docker Compose with Kubernetes: a `StatefulSet` for Postgres with a persistent volume claim and replication, a `Deployment` for the frontend with horizontal pod autoscaling, and a single-replica `Deployment` for the ingestion pod which kubernetes restarts automatically on failure.
 
 4. **Persistent message queue**: The current in-process `asyncio.Queue` drops posts when full (queue size 50). At scale, replace this with a durable broker (Kafka or Redis Streams) so burst traffic is absorbed without data loss and the ingestion worker can be restarted mid-batch without losing queued items.
 
 5. **Richer deduplication**: SHA-256 on URL/text catches exact duplicates. Near-duplicate detection (paraphrases, quote-tweets) would require semantic similarity — either an embedding similarity threshold checked against a vector store (pgvector) or a Locality Sensitive Hashing index.
 
-6. **Higher-quality RAG**: The current flat cosine retrieval is sufficient for an MVP. Production benefits from hybrid search (BM25 + dense retrieval) and scheduled context refresh via Apache Airflow to keep the Saudi Aramco knowledge base current with evolving geopolitical facts.
+6. **Higher-quality RAG**: The current flat cosine retrieval is sufficient for an MVP. Production benefits from hybrid search (BM25 + dense retrieval) and scheduled context refresh via Apache Airflow to keep the Saudi Aramco knowledge base current with evolving geopolitical facts. Additionally, implementing GraphRAG would allow the system to model the relationships between emerging geopolitical stakeholders and Aramco's operational network, providing significantly stronger, relationally-aware context alongside the proposed standard RAG solution.
 
-7. **Data Flywheel**: The data procurement pipeline can also integrate high-confidence, verified Bluesky posts, serving as a platform for new up to date information even as the application runs in produciton.
+7. **Data Flywheel**: The data procurement pipeline can also integrate high-confidence, verified Bluesky posts, serving as a platform for new up to date information even as the application runs in production.
 
 8. **Keyword and domain scaling**: The current regex and `endswith` loops are O(n) over small sets. At hundreds of keywords or trusted domains, replace with Aho-Corasick trie (keywords) and a hash set with suffix normalisation (domains) for faster matching.
 

@@ -1,5 +1,13 @@
 This system ingests live Bluesky data, filters out noise, identifies key geopolitical stakeholders/influencers, and provides actionable insights regarding the ongoing Iran conflict — specifically predicting how it affects Saudi Aramco supply chains and market stability.
 
+## Sample Demo
+
+<video src="./assets/demo.mp4" width="100%" controls>
+  Your browser does not support the video tag.
+</video>
+
+note: during the demo, a live event was streamed at the same time as the target post, showing the asynchronous ability of the data ingestion pipeline.
+
 ## Architecture
 This project uses a **monolithic architecture**:
 - **Background Ingestion Script (`scripts/bluesky_ingestion.py`):** Connects to the Bluesky firehose via WebSocket, filters posts through a multi-tier pipeline, and stores high-signal events in a Postgres database.
@@ -12,7 +20,7 @@ Posts from the firehose pass through the following stages in order:
 2. **Deduplication** — SHA256-based event ID checked against the database.
 3. **Secondary filters (tiered):**
    - *Hard accept:* Trusted DIDs bypass all further checks.
-   - *Hard reject:* Accounts with Ozone moderation labels `spam` or `impersonation` are dropped.
+   - *Hard reject:* Accounts with moderation labels `spam` or `impersonation` are dropped.
    - *Composite score:* Weighted score across three signals must meet `FILTER_SCORE_THRESHOLD` (default `0.5`):
      - **Domain trust** (weight 0.30) — Trusted news/energy domains score 1.0; custom domains 0.7; `bsky.social` 0.4.
      - **Account age** (weight 0.30) — Gradient from 0.0 (<7 days) to 1.0 (≥1 year).

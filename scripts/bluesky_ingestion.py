@@ -211,7 +211,7 @@ async def analyze_post(post_data: Dict[str, Any], scraped_content: str, context:
         return None
 
     prompt = f"""You are a geopolitical intelligence analyst for a global energy firm.
-Your task is to analyze a breaking social media post and assess its potential impact on Saudi Aramco's supply chain.
+Your task is to analyze a breaking social media post and assess its potential impact on Saudi Aramco's supply chain and/or market stability.
 
 INSTRUCTIONS:
 1. The BLUESKY POST is the *only* source of new information or breaking events.
@@ -486,8 +486,6 @@ async def main():
     try:
         async with AsyncConnectionPool(conninfo=conn_str, min_size=2, max_size=MAX_WORKERS+1) as pool:
             await initialize_database(pool)
-
-            print(os.getenv("CI"))
             
             if os.getenv("CI", "true") == "true":
                 logger.info("CI environment detected. Skipping OpenAI context vectorization.")
