@@ -42,7 +42,7 @@ Each stage is a gate; a post that fails any stage is dropped before the next, mo
 The composite score threshold (`FILTER_SCORE_THRESHOLD`, default 0.5) is an environment variable, allowing operators to tighten or loosen quality gates without touching code. Profiles are cached for 1 hour (TTL cache, 10k entries) to avoid redundant AT Protocol API calls for prolific posters
 
 Moreover, the pipeline is designed to expect and gracefully handle API failures and messy data:
-1. Exponential Backoff: Calls to the LLM API are wrapped with retry logic (e.g., using the tenacity library) with exponential backoff. This ensures transient rate limits or OpenAI server errors do not crash the pipeline or permanently drop high-value posts.
+1. Exponential Backoff: Calls to the LLM API are wrapped with retry logic (using python's inbuilt backoff decorator) with exponential backoff. This ensures transient rate limits or OpenAI server errors do not crash the pipeline or permanently drop high-value posts.
 2. Graceful Degradation: Broad exception catching is implemented around the parsing and LLM scoring modules. If a specific post causes a parsing error or schema validation failure, the error is logged gracefully, and the worker moves on to the next item in the queue rather than halting the process.
 3. Error prevention: Finally, OpenAI API concurrency is capped at 3 via a semaphore to stay within rate limits and budget.
 
@@ -57,11 +57,12 @@ At startup, `docs/saudi_aramco_context.json` is vectorised with `text-embedding-
 | Client Need | System Response |
 |---|---|
 | Proactive, continuous intelligence | Persistent WebSocket firehose; `restart: unless-stopped` on the ingestion service |
+| Real-time dashboard | PostgreSQL `NOTIFY` trigger → SSE stream → live React table update without polling |
 | Trusted, reputable sources only | Tiered filter: hard-reject spam labels, domain trust scoring, follower ratio |
 | Actionable, targeted insights | LLM prompt instructs analyst role with Aramco-specific framing; output is scored array of action items |
+| Transparency | Direct URL references to the original Bluesky post, allowing analysts to verify claims and mitigate the risk of LLM hallucinations.  |
 | Audit trail for LLM output | Full LLM input, retrieved RAG chunks, and raw reasoning stored per event in DB |
 | Budget discipline | Pre-LLM filter eliminates redundant streamed data; nano-class model used; OpenAI concurrency capped |
-| Real-time dashboard | PostgreSQL `NOTIFY` trigger → SSE stream → live React table update without polling |
 
 ---
 
@@ -79,9 +80,11 @@ At startup, `docs/saudi_aramco_context.json` is vectorised with `text-embedding-
 
 6. **Higher-quality RAG**: The current flat cosine retrieval is sufficient for an MVP. Production benefits from hybrid search (BM25 + dense retrieval) and scheduled context refresh via Apache Airflow to keep the Saudi Aramco knowledge base current with evolving geopolitical facts.
 
-7. **Keyword and domain scaling**: The current regex and `endswith` loops are O(n) over small sets. At hundreds of keywords or trusted domains, replace with Aho-Corasick trie (keywords) and a hash set with suffix normalisation (domains) for faster matching.
+7. **Data Flywheel**: The data procurement pipeline can also integrate high-confidence, verified Bluesky posts, serving as a platform for new up to date information even as the application runs in produciton.
 
-8. **Database Migration**: Production requires a robust schema migration framework, ensuring that every database change is strictly version-controlled and safely applied during automated CI/CD pipelines, and provides a clear rollback path if a deployment fails.
+8. **Keyword and domain scaling**: The current regex and `endswith` loops are O(n) over small sets. At hundreds of keywords or trusted domains, replace with Aho-Corasick trie (keywords) and a hash set with suffix normalisation (domains) for faster matching.
+
+9. **Database Migration**: Production requires a robust schema migration framework, ensuring that every database change is strictly version-controlled and safely applied during automated CI/CD pipelines, and provides a clear rollback path if a deployment fails.
 
 ---
 

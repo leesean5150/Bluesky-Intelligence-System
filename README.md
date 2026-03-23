@@ -45,5 +45,6 @@ A GitHub Actions workflow runs on every push. It:
 1. Builds all Docker images.
 2. Starts Postgres, the ingestion script, and the frontend.
 3. Verifies all services reach a `healthy` state.
+4. Runs unit and integration tests.
 
 LLM API calls are excluded from the automated test suite for cost and stability reasons.
