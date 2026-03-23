@@ -1,8 +1,7 @@
 This system ingests live Bluesky data, filters out noise, identifies key geopolitical stakeholders/influencers, and provides actionable insights regarding the ongoing Iran conflict — specifically predicting how it affects Saudi Aramco supply chains and market stability.
 
 ## Sample Demo
-
-![Video Title](./assets/demo.mp4)
+Access the sample video [here](./assets/demo.mp4).
 
 note: during the demo, a live event was streamed at the same time as the target post, showing the asynchronous ability of the data ingestion pipeline.
 
