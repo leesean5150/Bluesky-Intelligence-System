@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 
 interface IntelligenceEvent {
   id: string;
+  post_uri: string | null;
   post_text: string | null;
   uri: string | null;
   external_title: string | null;
@@ -279,15 +280,15 @@ export default function EventsTable() {
                       </td>
                       <td className="px-4 py-3 min-w-0">
                         <div className="font-medium text-gray-900 truncate max-w-lg">{title}</div>
-                        {event.uri && (
+                        {event.post_uri && (
                           <a
-                            href={event.uri}
+                            href={event.post_uri}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-blue-500 hover:underline truncate block max-w-lg"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {event.uri}
+                            {event.post_uri}
                           </a>
                         )}
                       </td>

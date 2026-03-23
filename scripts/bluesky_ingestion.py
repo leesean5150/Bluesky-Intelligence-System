@@ -469,7 +469,8 @@ async def on_message_handler(message, queue: asyncio.Queue):
 
             if REGEX_PATTERN.search(record['text']):
                 try:
-                    post_uri = f"at://{commit.repo}/{op.path}"
+                    rkey = op.path.split('/')[-1]
+                    post_uri = f"https://bsky.app/profile/{commit.repo}/post/{rkey}"
                     queue.put_nowait({'record': record, 'author_did': commit.repo, 'post_uri': post_uri})
                     logger.info(f"Fast-queued candidate post: {post_uri}")
                 except asyncio.QueueFull:
