@@ -5,8 +5,8 @@ export async function GET() {
   try {
     const { rows } = await pool.query(`
       SELECT
-        id, post_text, uri, external_title, external_description,
-        post_created_at, actionable_insights, impact_score, reasoning,
+        id, post_uri, post_text, uri, external_title, external_description,
+        post_created_at, actionable_insights, stakeholders, impact_score, reasoning,
         retrieved_context, ingested_at
       FROM intelligence_events
       ORDER BY ingested_at DESC

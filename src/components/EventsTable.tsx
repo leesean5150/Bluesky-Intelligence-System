@@ -4,12 +4,14 @@ import React, { useState, useEffect, useCallback } from "react";
 
 interface IntelligenceEvent {
   id: string;
+  post_uri: string | null;
   post_text: string | null;
   uri: string | null;
   external_title: string | null;
   external_description: string | null;
   post_created_at: string | null;
   actionable_insights: string | null;
+  stakeholders: string | null;
   impact_score: number | null;
   reasoning: string | null;
   retrieved_context: string | null;
@@ -114,13 +116,13 @@ function parseInsights(raw: string): string[] {
   return byLine.length > 1 ? byLine : [raw.trim()];
 }
 
-function InsightsRow({ value }: { value: string | null | undefined }) {
+function ArrayRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   const items = parseInsights(value);
   return (
     <div>
       <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">
-        Actionable Insights
+        {label}
       </div>
       {items.length === 1 ? (
         <p className="text-sm text-gray-700 leading-relaxed">{items[0]}</p>
@@ -278,15 +280,15 @@ export default function EventsTable() {
                       </td>
                       <td className="px-4 py-3 min-w-0">
                         <div className="font-medium text-gray-900 truncate max-w-lg">{title}</div>
-                        {event.uri && (
+                        {event.post_uri && (
                           <a
-                            href={event.uri}
+                            href={event.post_uri}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-blue-500 hover:underline truncate block max-w-lg"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {event.uri}
+                            {event.post_uri}
                           </a>
                         )}
                       </td>
@@ -322,7 +324,8 @@ export default function EventsTable() {
                               label="External Description"
                               value={event.external_description}
                             />
-                            <InsightsRow value={event.actionable_insights} />
+                            <ArrayRow label="Actionable Insights" value={event.actionable_insights} />
+                            <ArrayRow label="Stakeholders" value={event.stakeholders} />
                             <DetailRow label="Reasoning" value={event.reasoning} />
                             <DetailRow
                               label="Retrieved Context"
