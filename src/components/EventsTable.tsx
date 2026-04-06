@@ -40,7 +40,7 @@ function ImpactBadge({ score }: { score: number | null }) {
 
   return (
     <span
-      className={`inline-flex items-center justify-center w-10 h-6 rounded text-xs font-bold ring-1 ${cls}`}
+      className={`inline-flex items-center justify-center w-8 sm:w-10 h-6 rounded text-xs font-bold ring-1 ${cls}`}
     >
       {score}
     </span>
@@ -234,16 +234,16 @@ export default function EventsTable() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 w-20">
+              <th className="text-left px-2 sm:px-4 py-3 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500 w-14 sm:w-20">
                 Score
               </th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <th className="text-left px-2 sm:px-4 py-3 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Event
               </th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 w-44 hidden md:table-cell">
+              <th className="text-left px-2 sm:px-4 py-3 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500 w-44 hidden md:table-cell">
                 Ingested
               </th>
-              <th className="px-4 py-3 w-16" />
+              <th className="px-2 sm:px-4 py-3 w-16 sm:w-20" />
             </tr>
           </thead>
           <tbody>
@@ -275,40 +275,40 @@ export default function EventsTable() {
                       } ${isDeleting ? "opacity-40" : ""}`}
                       onClick={() => toggleExpand(event.id)}
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-2 sm:px-4 py-3">
                         <ImpactBadge score={event.impact_score} />
                       </td>
-                      <td className="px-4 py-3 min-w-0">
-                        <div className="font-medium text-gray-900 truncate max-w-lg">{title}</div>
+                      <td className="px-2 sm:px-4 py-3 min-w-0">
+                        <div className="font-medium text-gray-900 truncate max-w-[150px] sm:max-w-xs md:max-w-lg">{title}</div>
                         {event.post_uri && (
                           <a
                             href={event.post_uri}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-blue-500 hover:underline truncate block max-w-lg"
+                            className="text-[10px] sm:text-xs text-blue-500 hover:underline truncate block max-w-[150px] sm:max-w-xs md:max-w-lg"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {event.post_uri}
                           </a>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 hidden md:table-cell whitespace-nowrap">
+                      <td className="px-2 sm:px-4 py-3 text-xs text-gray-500 hidden md:table-cell whitespace-nowrap">
                         {formatDate(event.ingested_at)}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-3">
+                      <td className="px-2 sm:px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5 sm:gap-3">
                           <button
                             disabled={isDeleting}
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteEvent(event.id);
                             }}
-                            className="text-gray-300 hover:text-red-500 transition-colors disabled:cursor-not-allowed"
+                            className="text-gray-300 hover:text-red-500 transition-colors disabled:cursor-not-allowed p-1"
                             title="Delete"
                           >
                             <TrashIcon />
                           </button>
-                          <span className="text-gray-300">
+                          <span className="text-gray-300 p-1">
                             <ChevronIcon open={isExpanded} />
                           </span>
                         </div>
@@ -317,7 +317,7 @@ export default function EventsTable() {
 
                     {isExpanded && (
                       <tr className="border-b border-gray-200 bg-gray-50">
-                        <td colSpan={4} className="px-6 py-5">
+                        <td colSpan={4} className="px-4 sm:px-8 py-4 sm:py-6">
                           <div className="grid grid-cols-1 gap-5 max-w-4xl">
                             <DetailRow label="Post Text" value={event.post_text} />
                             <DetailRow
